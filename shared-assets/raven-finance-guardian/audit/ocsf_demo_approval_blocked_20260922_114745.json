@@ -1,0 +1,28 @@
+{
+  "class_uid": 6003,
+  "category_uid": 6,
+  "activity_id": 1,
+  "severity_id": 1,
+  "document_sha256": "",
+  "pipeline_step": "demo_approval_blocked",
+  "model_id": "deterministic-validator",
+  "model_revision": "",
+  "hardware": "NVIDIA H100 NVL",
+  "gpu_count": 0,
+  "inference_location": "on-premise",
+  "data_egress": "NONE",
+  "human_approved": false,
+  "approver_id": "test-reviewer",
+  "confidence": null,
+  "result_summary": "Blocked: IBAN_MISMATCH, AMOUNT_MISMATCH",
+  "regulatory_basis": [
+    "nLPD Art.6",
+    "OR Art.957ff"
+  ],
+  "pipeline_version": "",
+  "policy_version": "",
+  "signature_status": "software-test-signature",
+  "timestamp": "2026-09-22T11:47:45.285486+00:00",
+  "previous_event_hash": null,
+  "event_hash": "4e2480b8850edbfcbe250c0e9fe17cd37c86739bde4ac60a3ca34203b684f148"
+}

@@ -1,0 +1,28 @@
+{
+  "class_uid": 6003,
+  "category_uid": 6,
+  "activity_id": 1,
+  "severity_id": 1,
+  "document_sha256": "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72",
+  "pipeline_step": "document_processed",
+  "model_id": "mock-nim",
+  "model_revision": "",
+  "hardware": "NVIDIA H100 NVL",
+  "gpu_count": 0,
+  "inference_location": "on-premise",
+  "data_egress": "NONE",
+  "human_approved": false,
+  "approver_id": null,
+  "confidence": 0.93,
+  "result_summary": "Processed test.pdf mode=demo; fallbacks=none",
+  "regulatory_basis": [
+    "nLPD Art.6",
+    "OR Art.957ff"
+  ],
+  "pipeline_version": "",
+  "policy_version": "",
+  "signature_status": "software-test-signature",
+  "timestamp": "2026-09-22T12:26:12.449770+00:00",
+  "previous_event_hash": null,
+  "event_hash": "e70753c443052493537c58d019d9aefd5aa6a6b11bef0f14fb22c2bb5c6055ba"
+}

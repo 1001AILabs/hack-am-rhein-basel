@@ -1,0 +1,38 @@
+hardware_profile: cpu_only
+description: "RAVEN Scout — CPU-only, no GPU"
+gpu_count: 0
+total_vram_gb: 0
+
+layers:
+  01_layout:
+    model: null
+  02_ocr:
+    model: tesseract-5.x
+    gpu: null
+    language_packs: ["deu", "fra", "eng"]
+  03_parse:
+    model: paddleocr
+    gpu: null
+  04_normalize:
+    model: python-only
+    gpu: null
+  05_guardrails:
+    model: nemo-guardrails-colang
+    gpu: null
+  06_embeddings:
+    model: bge-m3
+    gpu: null
+    endpoint: http://127.0.0.1:11434
+  07_rerank:
+    model: null
+  08_account_fast:
+    model: apertus-1.5-8b-q4
+    gpu: null
+    endpoint: http://127.0.0.1:11434
+  09_reasoning:
+    model: null
+
+audit:
+  inference_location: on-premise
+  data_egress: NONE
+  signature_mode: software-test

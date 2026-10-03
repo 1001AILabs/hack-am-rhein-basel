@@ -1,0 +1,282 @@
+# RAVEN Finance Guardian -- Demo Profile
+# Starts only proven services: backend API + frontend + PostgreSQL.
+# NIM/Ollama/H100 services are NOT required and live in optional profiles.
+#
+# Usage:
+#   cp .env.example .env && edit .env   # set POSTGRES_PASSWORD
+#   docker compose -f docker-compose.demo.yml up --build
+#
+#   # Optional: OCR profile (page-elements + Nemotron OCR v2)
+#   docker compose -f docker-compose.demo.yml --profile ocr up -d
+#
+#   # Optional: Parse profile (Nemotron Parse v2)
+#   docker compose -f docker-compose.demo.yml --profile parse up -d
+#
+#   # Optional: Table profile (PaddleOCR)
+#   docker compose -f docker-compose.demo.yml --profile table up -d
+#
+#   # Optional: Reasoning profile (local Ollama fallback)
+#   docker compose -f docker-compose.demo.yml --profile reasoning up -d ollama
+#   # If host 11434 is already occupied, set OLLAMA_HOST_PORT (default 11435)
+#   # OLLAMA_HOST_PORT=11436 docker compose -f docker-compose.demo.yml --profile reasoning up -d ollama
+#
+#   # Optional: add Ollama for local LLM inference
+#   docker compose -f docker-compose.demo.yml --profile ollama up --build
+#
+#   # Optional: add GPU services (requires NVIDIA GPU + NGC_API_KEY)
+#   docker compose -f docker-compose.demo.yml --profile nim up --build
+
+services:
+
+  # --- PostgreSQL (required by backend service wiring) ---
+  postgres:
+    build:
+      context: .
+      dockerfile: postgres/Dockerfile
+    environment:
+      POSTGRES_DB: raven
+      POSTGRES_USER: raven
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - demo-pgdata:/var/lib/postgresql/data
+    networks:
+      - raven-demo
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raven -d raven"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # --- RAVEN Backend API (FastAPI) ---
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.demo
+    environment:
+      DATABASE_URL: postgresql://raven:${POSTGRES_PASSWORD}@postgres:5432/raven
+      RAVEN_MODE: ${RAVEN_MODE:-demo}
+      RAVEN_PROFILE: ${RAVEN_PROFILE:-demo}
+      RAVEN_NIM_PAGE_ELEMENTS_URL: ${RAVEN_NIM_PAGE_ELEMENTS_URL:-http://page-elements:8000}
+      RAVEN_NIM_OCR_URL: ${RAVEN_NIM_OCR_URL:-http://nemotron-ocr:8000}
+      RAVEN_NIM_PARSE_URL: ${RAVEN_NIM_PARSE_URL:-http://nemotron-parse:8000}
+      RAVEN_NIM_REASONING_URL: ${RAVEN_NIM_REASONING_URL:-}
+      RAVEN_NIM_REASONING_MODEL: ${RAVEN_NIM_REASONING_MODEL:-}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-gemma3:27b}
+      OLLAMA_REASONING_MODEL: ${OLLAMA_REASONING_MODEL:-qwen3:32b}
+      APERTUS_VLLM_URL: ${APERTUS_VLLM_URL:-http://raven-apertus-vllm:8000/v1/chat/completions}
+      RAVEN_DEMO_DATA_DIR: /data
+      MODEL_TIMEOUT_SECONDS: ${MODEL_TIMEOUT_SECONDS:-60}
+      LLM_SERVERURL: ${LLM_SERVERURL:-}
+      LLM_MODELNAME: ${LLM_MODELNAME:-}
+      RAVEN_ALLOWED_EGRESS_HOSTS: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8099:8080"
+    networks:
+      - raven-demo
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - /home/nvidia/1001ailabs/demo-data:/data:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # --- Frontend (React/Vite static build served by Nginx) ---
+  frontend:
+    build:
+      context: ../hackathon-2026
+      dockerfile: ../raven-finance-guardian/frontend.Dockerfile
+    ports:
+      - "127.0.0.1:8787:80"
+    networks:
+      - raven-demo
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # --- Optional: Layer 01 page-elements NIM ---
+  page-elements:
+    image: ${RAVEN_NIM_PAGE_ELEMENTS_IMAGE:-nvcr.io/nim/nvidia/nemotron-page-elements-v3:latest}
+    profiles: ["ocr"]
+    environment:
+      NGC_API_KEY: ${NGC_API_KEY:-}
+      TORCHINDUCTOR_CACHE_DIR: /tmp/torchinductor
+    volumes:
+      - nim-cache:/opt/nim/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+    shm_size: 16gb
+    ports:
+      - "127.0.0.1:8001:8000"
+    networks:
+      - raven-demo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+
+  # --- Optional: Layer 02 Nemotron OCR v2 ---
+  nemotron-ocr:
+    image: ${RAVEN_NIM_OCR_IMAGE:-nvcr.io/nim/nvidia/nemotron-ocr-v2:latest}
+    profiles: ["ocr"]
+    environment:
+      NGC_API_KEY: ${NGC_API_KEY:-}
+    volumes:
+      - nim-cache:/opt/nim/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    shm_size: 16gb
+    ports:
+      - "127.0.0.1:8002:8000"
+    networks:
+      - raven-demo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+
+  # --- Optional: Layer 03 Nemotron Parse v2 ---
+  nemotron-parse:
+    image: ${RAVEN_NIM_PARSE_IMAGE:-nvcr.io/nim/nvidia/nemotron-parse-v2.0:latest}
+    profiles: ["parse"]
+    environment:
+      NGC_API_KEY: ${NGC_API_KEY:-}
+    volumes:
+      - nim-cache:/opt/nim/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+    shm_size: 16gb
+    ports:
+      - "127.0.0.1:8003:8000"
+    networks:
+      - raven-demo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+
+  # --- Optional: Layer 03b PaddleOCR table extraction ---
+  paddleocr:
+    image: ${RAVEN_NIM_TABLE_IMAGE:-nvcr.io/nim/baidu/paddleocr:latest}
+    profiles: ["table"]
+    environment:
+      NGC_API_KEY: ${NGC_API_KEY:-}
+    volumes:
+      - nim-cache:/opt/nim/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    shm_size: 16gb
+    ports:
+      - "127.0.0.1:8015:8000"
+    networks:
+      - raven-demo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+
+  # --- Optional: Ollama for local LLM inference ---
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    profiles: ["ollama", "reasoning"]
+    ports:
+      - "127.0.0.1:${OLLAMA_HOST_PORT:-11435}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - raven-demo
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # --- Optional: GQE GPU Query Engine (requires NVIDIA GPU) ---
+  gqe:
+    image: gqe
+    profiles: ["nim", "gqe"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./data/parquet:/data/parquet:ro
+      - ./gqe-raven:/raven:ro
+    command: >
+      bash -c "
+        cd /gqe &&
+        ./build/src/node_manager/gqe_node_manager
+          --address 0.0.0.0
+          --port 50051
+          --num-gpus 1
+          --task-manager-binary ./build/src/task_manager/gqe_task_manager
+      "
+    ports:
+      - "127.0.0.1:50051:50051"
+    networks:
+      - raven-demo
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  demo-pgdata:
+  ollama-data:
+  nim-cache:
+
+networks:
+  raven-demo:
+    driver: bridge

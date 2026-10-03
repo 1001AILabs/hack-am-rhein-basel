@@ -1,0 +1,96 @@
+hardware_profile: h100_single
+description: "1× H100 80GB — Apertus 1.5 70B Q4 + full NIM guardrail suite"
+gpu_count: 1
+per_gpu_vram_mib: 81920
+physical_vram_mib: 81920
+planning_vram_mib: 72000
+backend: nvidia-container-toolkit
+
+layers:
+  01_layout:
+    model: nemotron-page-elements-v3
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 2
+    precision: fp16
+    endpoint: http://127.0.0.1:8001
+  02_ocr:
+    model: nemotron-ocr-v2
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 3
+    precision: fp16
+    endpoint: http://127.0.0.1:8002
+  03_parse:
+    model: nemotron-parse-2.0
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 4
+    precision: fp16
+    endpoint: http://127.0.0.1:8003
+  03b_paddleocr:
+    model: paddleocr
+    status: verify-exact-image-tag
+    gpu: null
+    vram_gb: 0
+    endpoint: http://127.0.0.1:8015
+  04_normalize:
+    model: python-only
+    status: local-verified
+    gpu: null
+  05_guardrails_jailbreak:
+    model: nemoguard-jailbreak-detect
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 4
+    endpoint: http://127.0.0.1:8006
+  05b_guardrails_content:
+    model: llama-3.1-nemoguard-8b-content-safety
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 4
+    precision: fp8
+    endpoint: http://127.0.0.1:8005
+  05c_guardrails_topic:
+    model: llama-3.1-nemoguard-8b-topic-control
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 4
+    precision: fp8
+    endpoint: http://127.0.0.1:8012
+  05d_guardrails_final:
+    model: nemotron-3.5-content-safety
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 5
+    endpoint: http://127.0.0.1:8013
+  06_embeddings:
+    model: llama-nemotron-embed-vl-1b-v2
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 2
+    endpoint: http://127.0.0.1:8007
+  07_rerank:
+    model: llama-nemotron-rerank-vl-1b-v2
+    status: verify-exact-image-tag
+    gpu: 0
+    vram_gb: 2
+    endpoint: http://127.0.0.1:8008
+  08_account_fast:
+    model: apertus-1.5-8b-q4-k-m
+    status: local-model-verify
+    gpu: 0
+    vram_gb: 5
+    endpoint: http://127.0.0.1:11434
+  09_reasoning:
+    model: apertus-1.5-70b-q4-k-m
+    status: local-model-verify
+    gpu: 0
+    vram_gb: 40
+    num_parallel: 4
+    endpoint: http://127.0.0.1:11434
+
+audit:
+  inference_location: on-premise
+  data_egress: NONE
+  signature_mode: software-test

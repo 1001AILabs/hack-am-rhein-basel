@@ -1,0 +1,40 @@
+hardware_profile: nest_amd_max395
+description: "RAVEN Nest — AMD MAX+ PRO 395, 128GB unified"
+gpu_count: 1
+total_vram_gb: 128
+
+layers:
+  01_layout:
+    model: null
+  02_ocr:
+    model: tesseract-5.x
+    gpu: null
+    language_packs: ["deu", "fra", "eng"]
+  03_parse:
+    model: paddleocr
+    gpu: 0
+  04_normalize:
+    model: python-only
+    gpu: null
+  05_guardrails:
+    model: nemo-guardrails-colang
+    gpu: null
+  06_embeddings:
+    model: bge-m3
+    gpu: 0
+    endpoint: http://127.0.0.1:11434
+  07_rerank:
+    model: null
+  08_account_fast:
+    model: apertus-1.5-8b-q4
+    gpu: 0
+    endpoint: http://127.0.0.1:11434
+  09_reasoning:
+    model: apertus-1.5-70b-q4
+    gpu: 0
+    endpoint: http://127.0.0.1:11434
+
+audit:
+  inference_location: on-premise
+  data_egress: NONE
+  signature_mode: software-test

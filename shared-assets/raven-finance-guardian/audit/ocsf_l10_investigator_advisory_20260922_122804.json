@@ -1,0 +1,28 @@
+{
+  "class_uid": 6003,
+  "category_uid": 6,
+  "activity_id": 1,
+  "severity_id": 1,
+  "document_sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "pipeline_step": "l10_investigator_advisory",
+  "model_id": "malicious-model",
+  "model_revision": "",
+  "hardware": "NVIDIA H100 NVL",
+  "gpu_count": 1,
+  "inference_location": "h100-gpu-1",
+  "data_egress": "NONE",
+  "human_approved": false,
+  "approver_id": null,
+  "confidence": null,
+  "result_summary": "Advisory query by rules_explainer on case MORGIANA-2026-0001",
+  "regulatory_basis": [
+    "nLPD Art.6",
+    "OR Art.957ff"
+  ],
+  "pipeline_version": "",
+  "policy_version": "",
+  "signature_status": "software-test-signature",
+  "timestamp": "2026-09-22T12:28:04.112159+00:00",
+  "previous_event_hash": null,
+  "event_hash": "9a94d3e3a487bbe13cc045204f50187e505a4ee52bf0bfad9e453c2f057b8d81"
+}

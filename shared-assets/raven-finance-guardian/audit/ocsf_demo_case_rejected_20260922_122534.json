@@ -1,0 +1,28 @@
+{
+  "class_uid": 6003,
+  "category_uid": 6,
+  "activity_id": 1,
+  "severity_id": 1,
+  "document_sha256": "",
+  "pipeline_step": "demo_case_rejected",
+  "model_id": "deterministic-validator",
+  "model_revision": "",
+  "hardware": "NVIDIA H100 NVL",
+  "gpu_count": 0,
+  "inference_location": "on-premise",
+  "data_egress": "NONE",
+  "human_approved": false,
+  "approver_id": "test-reviewer",
+  "confidence": null,
+  "result_summary": "Rejected FG-INV-2026-0045: VAT split needs manual check",
+  "regulatory_basis": [
+    "nLPD Art.6",
+    "OR Art.957ff"
+  ],
+  "pipeline_version": "",
+  "policy_version": "",
+  "signature_status": "software-test-signature",
+  "timestamp": "2026-09-22T12:25:34.379984+00:00",
+  "previous_event_hash": null,
+  "event_hash": "ca24129f35c57345bc7fee78570dac4b03d4143fb4a33013b1c7c9ebfd2f1284"
+}

@@ -1,0 +1,28 @@
+{
+  "class_uid": 6003,
+  "category_uid": 6,
+  "activity_id": 1,
+  "severity_id": 1,
+  "document_sha256": "",
+  "pipeline_step": "demo_case_approved",
+  "model_id": "deterministic-validator",
+  "model_revision": "",
+  "hardware": "NVIDIA H100 NVL",
+  "gpu_count": 0,
+  "inference_location": "on-premise",
+  "data_egress": "NONE",
+  "human_approved": true,
+  "approver_id": "test-reviewer",
+  "confidence": null,
+  "result_summary": "Approved FG-INV-2026-0043 (no ERP write)",
+  "regulatory_basis": [
+    "nLPD Art.6",
+    "OR Art.957ff"
+  ],
+  "pipeline_version": "",
+  "policy_version": "",
+  "signature_status": "software-test-signature",
+  "timestamp": "2026-09-22T11:47:45.268292+00:00",
+  "previous_event_hash": null,
+  "event_hash": "94105848c4b2e703025470288394b3dc9254906dad70c7fb930dd442783a499b"
+}

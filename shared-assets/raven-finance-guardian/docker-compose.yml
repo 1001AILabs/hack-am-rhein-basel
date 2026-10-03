@@ -1,0 +1,139 @@
+# RAVEN Finance Guardian — Docker Compose
+# Unified stack: MCP backend + RAG Blueprint + GQE + Transaction Model
+#
+# Usage:
+#   docker compose up -d                    # Core stack (backend + postgres)
+#   docker compose --profile rag up -d      # Add RAG Blueprint
+#   docker compose --profile gqe up -d      # Add GQE GPU queries
+#   docker compose --profile full up -d     # Everything
+
+services:
+  # ---- Core RAVEN Stack ----
+
+  postgres:
+    build:
+      context: .
+      dockerfile: postgres/Dockerfile
+    environment:
+      POSTGRES_DB: raven
+      POSTGRES_USER: raven
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env — no default}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Host port left unbound; another local postgres already listens on
+    # 127.0.0.1:5432. Backend connects via internal network at postgres:5432.
+    expose:
+      - "5432"
+    networks:
+      - raven-internal
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raven -d raven"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://raven:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/raven
+      GQE_SERVER_URL: ${GQE_SERVER_URL:-http://gqe:50051}
+      RAG_SERVER_URL: ${RAG_SERVER_URL:-http://rag-server:8081}
+      RAG_INGESTOR_URL: ${RAG_INGESTOR_URL:-http://ingestor-server:8082}
+      TXN_MODEL_DIR: /app/nvidia-txn-model
+      RAVEN_ALLOWED_EGRESS_HOSTS: ${RAVEN_ALLOWED_EGRESS_HOSTS:-}
+    volumes:
+      - ./data:/app/data:ro
+      - ./gqe-raven:/app/gqe-raven:ro
+      - ./nvidia-txn-model:/app/nvidia-txn-model:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8099:8080"
+    networks:
+      - raven-internal
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    # Docker socket is never mounted; agents cannot reach host resources.
+
+  # ---- GQE GPU Query Engine ----
+
+  gqe:
+    image: gqe
+    profiles: ["gqe", "full"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./data/parquet:/data/parquet:ro
+      - ./gqe-raven:/raven:ro
+    command: >
+      bash -c "
+        cd /gqe &&
+        ./build/src/node_manager/gqe_node_manager
+          --address 0.0.0.0
+          --port 50051
+          --num-gpus 1
+          --task-manager-binary ./build/src/task_manager/gqe_task_manager
+      "
+    ports:
+      - "127.0.0.1:50051:50051"
+    networks:
+      - raven-internal
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # ---- NVIDIA RAG Blueprint (external stack) ----
+  # The RAG Blueprint runs as its own Docker Compose stack.
+  # See nvidia-rag-blueprint/deploy/compose/ for the full stack.
+  # This placeholder documents the integration point.
+
+  # To deploy RAG alongside RAVEN:
+  # 1. cd nvidia-rag-blueprint/deploy/compose
+  # 2. source .env && source nemotron3-super.env
+  # 3. docker compose -f docker-compose-rag-server.yaml \
+  #                   -f docker-compose-ingestor-server.yaml \
+  #                   -f vectordb.yaml \
+  #                   -f nims.yaml up -d
+
+  # ---- Transaction Foundation Model ----
+  # Runs inside the NeMo Framework container.
+  # See nvidia-txn-model/ for notebooks and training scripts.
+
+  # To train/infer:
+  # docker run --gpus all --rm -it \
+  #   -v $(pwd)/nvidia-txn-model:/workspace \
+  #   --shm-size=8g \
+  #   nvcr.io/nvidia/nemo:25.09.01 \
+  #   jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+
+volumes:
+  pgdata:
+
+networks:
+  raven-internal:
+    driver: bridge
+    internal: false  # set true to fully isolate from outbound internet
